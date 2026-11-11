@@ -1,4 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { InstallPrompt } from './components/InstallPrompt'
+import { PwaUpdateToast } from './components/PwaUpdateToast'
 import { SearchProvider } from './context/SearchContext'
 import { CameraErrorPage } from './pages/CameraErrorPage'
 import { CameraPrepPage } from './pages/CameraPrepPage'
@@ -26,6 +28,8 @@ export default function App() {
           <Route path="/summary" element={<SummaryPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <InstallPrompt />
+        <PwaUpdateToast />
       </BrowserRouter>
     </SearchProvider>
   )
