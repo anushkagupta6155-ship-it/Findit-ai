@@ -1,6 +1,6 @@
 # FindIt AI
 
-**Real-time visual search UI for locating lost belongings — Phase 1 (mocked AI pipeline).**
+**Real-time visual search UI for locating lost belongings — Phase 1 (mocked AI pipeline) + installable PWA.**
 
 Scan with a reference photo, review **possible** matches, and confirm yourself. The product never claims guaranteed identification.
 
@@ -8,9 +8,12 @@ Scan with a reference photo, review **possible** matches, and confirm yourself. 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5%2B-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)](https://vite.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38BDF8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
-[![Status](https://img.shields.io/badge/Status-Phase_1_UI-amber)](#limitations--future-improvements)
+[![PWA](https://img.shields.io/badge/PWA-vite--plugin--pwa-5A0FC8)](https://vite-pwa-org.netlify.app/)
+[![Status](https://img.shields.io/badge/Status-Phase_1_+_PWA-amber)](#limitations--future-improvements)
 
-> **Honesty first:** Live camera preview uses the browser `getUserMedia` API. Detection and similarity results in this phase are **deterministic mocks** — not YOLO, CLIP, or DINOv2 inference. See [AI Implementation](#ai-implementation).
+> **Honesty first:** Live camera preview uses the browser `getUserMedia` API. Detection and similarity results in this phase are **deterministic mocks** — not YOLO, CLIP, or DINOv2 inference. See [AI implementation](#ai-implementation).
+
+**Repository:** [github.com/anushkagupta6155-ship-it/Findit-ai](https://github.com/anushkagupta6155-ship-it/Findit-ai)
 
 ---
 
@@ -18,12 +21,15 @@ Scan with a reference photo, review **possible** matches, and confirm yourself. 
 
 - [Overview](#overview)
 - [Key features](#key-features)
+- [Progressive Web App](#progressive-web-app)
+- [Install on phone](#install-on-phone)
 - [How it works](#how-it-works)
 - [Screenshots / demo](#screenshots--demo)
 - [Technology stack](#technology-stack)
 - [System architecture](#system-architecture)
 - [Project structure](#project-structure)
 - [Installation & setup](#installation--setup)
+- [Deployment](#deployment)
 - [API documentation](#api-documentation)
 - [AI implementation](#ai-implementation)
 - [Privacy & security](#privacy--security)
@@ -45,44 +51,89 @@ Scan with a reference photo, review **possible** matches, and confirm yourself. 
 | Generic “AI found it” UIs overclaim identity | UI uses **match bands** (“Strong possible match”, etc.) and requires human confirm/reject |
 | Camera may be unavailable | Still-image fallback and dedicated camera-error recovery screens |
 
-**Current value (Phase 1):** a complete, mobile-first product flow with real camera access, image validation, session state, and a swappable mock match layer — ready for a FastAPI + vision backend in later phases.
+**Current value:** a complete, mobile-first product flow with real camera access, image validation, session state, a mocked match layer, and an **installable PWA** (standalone home-screen app) via `vite-plugin-pwa`.
 
 ---
 
 ## Key features
 
-### Implemented (Phase 1)
+### Implemented
 
 - Landing page with product explanation and CTA
-- Reference intake: gallery upload, camera capture (`capture="environment"`), product image URL, and demo samples
-- Up to **3** reference photos with remove support
+- Reference intake: gallery upload, camera capture, product image URL, and demo samples
+- Up to **3** reference photos; crop / select-object (react-easy-crop)
 - Optional metadata: name, colour, brand, notes
-- Client-side image validation (JPEG / PNG / WebP, max 5 MB, soft-size warning)
-- Per-photo **crop / select-object** step
-- Reference confirmation screen
+- Client-side image validation (JPEG / PNG / WebP, max 5 MB, small-size warning)
 - Camera preparation + explicit **Enable Camera** permission gate
-- Live scan view with `getUserMedia`, pause / resume / stop, guidance tips
-- Deterministic **mocked** candidates, overlays, and match bottom sheet
-- Match bands (not raw % as primary UI); expandable technical score details
-- Confirm / reject match; rejected IDs suppressed for the rest of the scan session
-- Vibration + short chime hooks on mock match alert (browser permitting)
-- Camera error states (`permission-denied`, `not-found`, `not-supported`, `in-use`, `unknown`)
-- Still-image search fallback
-- Search summary (duration, candidates, possible matches, confirm/reject counts)
-- In-memory session via React context (`SearchProvider`)
+- Live scan: `getUserMedia`, zoom, pause / resume / stop, torch when supported
+- Match bands (not raw % as primary UI); confirm / reject; vibration / sound feedback hooks
+- Still-image search fallback + camera error recovery
+- Search summary
+- **PWA:** web manifest, service worker, app icons, install prompt / iOS hint, update toast
 
-### Planned / in development (not in this codebase yet)
+### Planned / in development (not implemented yet)
 
 - FastAPI backend and HTTP scan APIs
 - Open-vocabulary detection (YOLO-World / OWL-ViT) + COCO YOLO baseline
-- CLIP vs DINOv2 similarity evaluation and calibrated thresholds
-- Evaluation dataset (20–30 items) with precision / recall
-- Postgres search history and feedback logs
-- Production deploy (planned: Vercel frontend + Hugging Face Spaces Docker backend)
-- HTTPS local phone testing workflow for camera on LAN
-- Automated unit / e2e test suite
+- CLIP vs DINOv2 evaluation and calibrated thresholds
+- Evaluation dataset; Postgres history / feedback logs
+- Hugging Face Spaces Docker for the ML API
 
-Roadmap detail: [`docs/REVISED_PLAN.md`](docs/REVISED_PLAN.md) · R&D log: [`docs/RESEARCH.md`](docs/RESEARCH.md)
+Roadmap: [`docs/REVISED_PLAN.md`](docs/REVISED_PLAN.md) · R&D: [`docs/RESEARCH.md`](docs/RESEARCH.md)
+
+---
+
+## Progressive Web App
+
+FindIt AI is configured as a **Progressive Web App** so users can install it from the browser (no Play Store / App Store account required).
+
+| Item | Detail |
+|------|--------|
+| Plugin | `vite-plugin-pwa` with `registerType: 'autoUpdate'` |
+| Manifest | `name`: FindIt AI · `short_name`: FindIt · `display`: standalone · `orientation`: portrait |
+| Theme | `theme_color` / `background_color`: `#0b0f14` (design tokens) |
+| Icons | `public/icons/icon-192.png`, `icon-512.png`, `icon-512-maskable.png`, `apple-touch-icon.png` |
+| Start URL / scope | `/` |
+| SPA routing | Workbox `navigateFallback` → `index.html` (deep links work in standalone) |
+
+### Caching rules
+
+| Resource | Strategy |
+|----------|----------|
+| Built JS / CSS / HTML / icons (and other static build assets) | **Precache** (revisioned; refreshed on new deploy) |
+| Google Fonts | Runtime cache with expiration |
+| Future `/api/*` | **NetworkOnly** (never cached) |
+| Camera frames / uploaded image blobs | **Not cached** (in-memory / data URLs only; not SW assets) |
+
+When a new version is deployed, users see a small **“New version available. Refresh”** toast (`PwaUpdateToast`).
+
+### Offline behaviour (honest)
+
+- The **app shell** (cached static assets) may load offline.
+- **Live camera scanning does not work offline** and is not claimed to.
+- No backend/auth responses are cached.
+
+---
+
+## Install on phone
+
+Requires a **public HTTPS** URL (e.g. Vercel production). Camera also requires HTTPS on real devices (except `localhost`).
+
+### Android (Chrome)
+
+1. Open the deployed site in Chrome.
+2. Use the in-app **Install app** button when shown, or Chrome menu → **Install app** / **Add to Home screen**.
+3. Open **FindIt** from the home screen (standalone, no browser chrome).
+4. Run a search and allow camera when prompted.
+
+### iPhone (Safari)
+
+1. Open the site in **Safari** (not Chrome for iOS install).
+2. Tap **Share** → **Add to Home Screen**.
+3. Confirm **Add**.
+4. Launch from the home screen and allow camera when scanning.
+
+> iOS does not expose `beforeinstallprompt`. The app shows a one-time hint: Share → Add to Home Screen.
 
 ---
 
@@ -90,16 +141,14 @@ Roadmap detail: [`docs/REVISED_PLAN.md`](docs/REVISED_PLAN.md) · R&D log: [`doc
 
 ### User journey
 
-1. **Landing** — Understand the product; start a search.
-2. **Upload** — Add 1–3 references (upload, capture, URL, or demo sample) and optional details.
-3. **Crop** — Frame the lost object in each photo.
-4. **Confirm** — Review cropped references and metadata.
-5. **Camera prep** — Read tips; choose **Enable Camera** or still-photo fallback.
-6. **Scan** — Live preview; mock pipeline surfaces candidates over time.
-7. **Match sheet** — Compare reference vs candidate; confirm or keep scanning.
-8. **Summary** — Session stats; search again or return home.
-
-Alternate paths: camera errors → retry / still photo / home; still-image search → confirm → summary.
+1. **Landing** — Start a search.
+2. **Upload** — Add 1–3 references and optional details.
+3. **Crop** — Frame the lost object.
+4. **Confirm** — Review references.
+5. **Camera prep** — Enable camera or use still-photo fallback.
+6. **Scan** — Live preview; mock pipeline surfaces candidates.
+7. **Match sheet** — Confirm or keep scanning.
+8. **Summary** — Session stats.
 
 ### User-flow diagram
 
@@ -140,20 +189,9 @@ flowchart TD
 
 ## Screenshots / demo
 
-**Live demo URL:** not published yet.
+**Live demo:** use your Vercel production URL after deploy (HTTPS).
 
-**In-repo screenshots:** none checked in under `docs/` or `public/` at this time.
-
-| Screen | Asset |
-|--------|--------|
-| Landing | _Placeholder — add `docs/screenshots/01-landing.png`_ |
-| Upload | _Placeholder — add `docs/screenshots/02-upload.png`_ |
-| Crop | _Placeholder — add `docs/screenshots/03-crop.png`_ |
-| Live scan | _Placeholder — add `docs/screenshots/04-scan.png`_ |
-| Match sheet | _Placeholder — add `docs/screenshots/05-match.png`_ |
-| Summary | _Placeholder — add `docs/screenshots/06-summary.png`_ |
-
-To capture locally after `npm run dev`, save PNGs into `docs/screenshots/` and replace the placeholders above.
+**In-repo screenshots:** none checked in yet — add under `docs/screenshots/` if desired.
 
 ---
 
@@ -161,96 +199,90 @@ To capture locally after `npm run dev`, save PNGs into `docs/screenshots/` and r
 
 ### Currently used
 
-| Layer | Technology | Purpose in this repo |
-|-------|------------|----------------------|
-| UI | **React 19** | Component-based SPA |
-| Language | **TypeScript** | Typed pages, context, and domain models |
-| Bundler / dev server | **Vite 8** | Fast HMR; `host: true`, port **5173** |
-| Routing | **React Router DOM 7** | Client-side multi-step flow |
-| Styling | **Tailwind CSS 4** (`@tailwindcss/vite`) | Mobile-first layout and design tokens |
-| Camera | **Browser `getUserMedia`** | Live video preview on `/scan` |
-| Session state | **React Context** (`SearchContext`) | References, metadata, scan counters |
-| Mock “AI” | **In-browser TypeScript** (`src/data/mockScan.ts`) | Deterministic candidate timeline |
-| Lint | **oxlint** | `npm run lint` |
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| UI | **React 19** | SPA |
+| Language | **TypeScript** | Typed app code |
+| Bundler | **Vite 8** | Dev server + production build |
+| PWA | **vite-plugin-pwa** (Workbox) | Manifest, service worker, auto-update |
+| Routing | **React Router DOM 7** | Multi-step client routes |
+| Styling | **Tailwind CSS 4** | Mobile-first UI |
+| Crop | **react-easy-crop** | Reference object crop + zoom |
+| Icons (UI) | **lucide-react** | Install / scan controls |
+| Camera | **getUserMedia** | Live preview on `/scan` |
+| Session | **React Context** | In-memory search session |
+| Mock AI | `src/data/mockScan.ts` | Deterministic candidates |
+| Hosting | **Vercel** | Static SPA + HTTPS (`vercel.json` SPA rewrite) |
 
-### Planned (documented, not implemented here)
+### Planned
 
-| Layer | Planned technology | Notes |
-|-------|--------------------|--------|
-| Backend | FastAPI (Python) | Phase 3+ |
-| Detection | YOLO-World / OWL-ViT (+ COCO YOLO baseline) | Phase 5 |
-| Similarity | OpenCLIP ViT-B/32 and DINOv2 (evaluate both) | Phase 6 |
-| Database | PostgreSQL | Phase 7 (history / feedback) |
-| Deploy | Vercel + Hugging Face Spaces (Docker) | Phase 9 |
+| Layer | Technology |
+|-------|------------|
+| Backend | FastAPI |
+| Detection / similarity | YOLO-World or OWL-ViT; CLIP / DINOv2 |
+| Database | PostgreSQL |
+| ML host | Hugging Face Spaces (Docker) |
 
 ---
 
 ## System architecture
 
-Phase 1 is a **frontend-only** SPA. There is **no backend process**, **no REST/WebSocket API**, and **no model server**.
+Frontend-only SPA today. No REST API or model server in this repo.
 
 ```mermaid
 flowchart LR
   subgraph Browser
-    UI[React pages + Tailwind]
-    CTX[SearchContext session]
-    CAM[getUserMedia video]
-    MOCK[mockScan.ts timeline]
-    VAL[imageValidation + crop canvas]
+    UI[React pages]
+    CTX[SearchContext]
+    CAM[getUserMedia]
+    MOCK[mockScan]
+    SW[Service Worker]
     UI --> CTX
     UI --> CAM
     UI --> MOCK
-    UI --> VAL
+    SW --> UI
   end
 
-  subgraph Future["Future phases — not in repo"]
+  subgraph Future["Future — not in repo"]
     API[FastAPI]
     DET[Open-vocab detector]
     SIM[CLIP / DINOv2]
-    DB[(PostgreSQL)]
     API --> DET --> SIM
-    API --> DB
   end
 
   UI -.->|planned HTTP| API
 ```
-
-**Today:** the scan loop advances a mock candidate schedule by elapsed time (~700 ms ticks). Overlays and the match sheet read those candidates. Reference images stay as data URLs (or sample/public paths) in memory for the session.
-
-**Later:** the UI should call a scan client that posts frames/crops to FastAPI; mock and real backends should share one interface (planned refactor).
 
 ---
 
 ## Project structure
 
 ```text
-tool_finder/                 # package name: findit-ai @ 0.1.0
+Findit-ai/                   # findit-ai @ 0.1.0
 ├── docs/
-│   ├── RESEARCH.md          # R&D log (hypotheses, decisions, pending experiments)
-│   └── REVISED_PLAN.md      # Locked product / tech decisions and phase map
+│   ├── RESEARCH.md
+│   └── REVISED_PLAN.md
 ├── public/
 │   ├── favicon.svg
-│   └── samples/             # Demo reference SVGs (wallet, keys, earbuds)
+│   ├── icons/               # PWA icons (192, 512, maskable, apple-touch)
+│   └── samples/             # Demo references
 ├── src/
-│   ├── App.tsx              # Router + SearchProvider
-│   ├── main.tsx
-│   ├── index.css            # Tailwind + design tokens / motion
-│   ├── components/          # Brand, Button, MatchSheet, ScanOverlay, …
+│   ├── App.tsx              # Routes + InstallPrompt + PwaUpdateToast
+│   ├── components/
+│   │   ├── InstallPrompt.tsx
+│   │   ├── PwaUpdateToast.tsx
+│   │   └── …                # Brand, MatchSheet, ScanOverlay, …
 │   ├── context/
-│   │   └── SearchContext.tsx
 │   ├── data/
-│   │   ├── mockScan.ts      # Deterministic mock detections
-│   │   └── samples.ts       # Demo sample catalog
+│   ├── hooks/               # useTorch, useCameraZoom, useMatchFeedback
 │   ├── lib/
-│   │   ├── imageValidation.ts
-│   │   └── matchBands.ts    # Score → band labels (placeholder thresholds)
-│   ├── pages/               # One screen per route
-│   └── types/
-│       └── search.ts
-├── index.html
-├── package.json
-├── vite.config.ts
-└── tsconfig*.json
+│   ├── pages/
+│   ├── types/
+│   └── vite-env.d.ts        # vite-plugin-pwa types
+├── index.html               # theme-color + Apple web-app meta
+├── vercel.json              # SPA rewrite → index.html
+├── vite.config.ts           # Vite + Tailwind + PWA plugin
+└── package.json
 ```
 
 ---
@@ -259,111 +291,96 @@ tool_finder/                 # package name: findit-ai @ 0.1.0
 
 ### Prerequisites
 
-- **Node.js** 20+ recommended (developed against a current Node 24 toolchain)
-- npm (ships with Node)
-- A desktop browser with camera access for `/scan` (Chrome recommended)
-- For phone camera over LAN later: HTTPS (not required for `localhost`)
+- Node.js **20+**
+- npm
+- Chrome (or similar) with camera for `/scan`
+- Phone testing: **HTTPS** deploy (or localhost / tunnel)
 
-### Clone
-
-This working copy may not yet have a published remote. When the repository is on GitHub:
+### Clone & run
 
 ```bash
-git clone <YOUR_REPO_URL>
-cd tool_finder
-```
-
-### Install
-
-```bash
+git clone https://github.com/anushkagupta6155-ship-it/Findit-ai.git
+cd Findit-ai
 npm install
-```
-
-### Environment variables
-
-**None required for Phase 1.**  
-There is no `.env` / `.env.example` in the repository. No `import.meta.env` usage exists in `src/`.
-
-When a backend is added, introduce `.env.example` (e.g. `VITE_API_BASE_URL`) and document it here.
-
-### Run locally (frontend)
-
-```bash
 npm run dev
 ```
 
 - Local: [http://localhost:5173/](http://localhost:5173/)
-- LAN: Vite prints a Network URL (`server.host: true` in `vite.config.ts`)
-
-### Production build & preview
+- Note: service worker is **disabled in dev** (`devOptions.enabled: false`). Use production preview to test PWA:
 
 ```bash
 npm run build
 npm run preview
 ```
 
+Then open the preview URL → DevTools → **Application** → Manifest + Service Workers.
+
+### Environment variables
+
+**None required** for the current frontend. No `.env` in the repo.
+
 ### Backend
 
-**Not present.** There is no Python/FastAPI (or other) server in this repository. Backend startup commands will be added in Phase 3+.
+**Not present.** No FastAPI (or other) server in this repository.
 
 ### Quick demo path
 
-1. Open the app → **Find My Lost Item**
-2. Choose a **Demo · …** sample
-3. Crop → Confirm → **Enable Camera** (allow permission)
-4. Wait for the mocked **Strong possible match** sheet (~7s into the mock timeline)
-5. Confirm or reject → view **Summary**
+1. **Find my lost item** → pick a **Demo** sample  
+2. Crop → Confirm → **Enable Camera**  
+3. Wait for mocked **Strong possible match** (~7s)  
+4. Confirm / reject → **Summary**
+
+---
+
+## Deployment
+
+Configured for **Vercel** (static Vite build + SPA rewrite in `vercel.json`).
+
+```json
+{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+```
+
+Typical flow: push to `main` → Vercel builds `npm run build` → serves `dist/` over HTTPS.
+
+After deploy, verify:
+
+1. `https://<your-app>/manifest.webmanifest` loads  
+2. Service worker registers (Application tab)  
+3. Install / Add to Home Screen works on a phone  
+4. Camera permission works in standalone mode  
 
 ---
 
 ## API documentation
 
-**No HTTP APIs are implemented.** There are no `fetch` / axios calls and no `/api` routes in the frontend.
-
-Planned (not available yet): reference upload, frame/scan endpoints, health check — to be defined with the FastAPI service.
+**No HTTP APIs are implemented.** Future `/api/*` routes are configured as **NetworkOnly** in the service worker so they will not be cached when added.
 
 ---
 
 ## AI implementation
 
-### What runs today
+| Concern | Today |
+|---------|--------|
+| Detection / similarity | **Mocked** (`mockScan.ts` + `matchBands.ts`) |
+| Match bands | Strong / Possible / Weak; raw score in technical details only |
+| Stability | `STABLE_HIT_FRAMES = 3` before alert |
+| Thresholds | Placeholder — not calibrated (`docs/RESEARCH.md`) |
 
-| Concern | Implementation |
-|---------|----------------|
-| Object detection | **Mocked** — fixed boxes/labels over time in `src/data/mockScan.ts` |
-| Similarity scoring | **Mocked** — preset scores mapped through `src/lib/matchBands.ts` |
-| Match bands | Strong / Possible / Weak labels; raw score only under “technical details” |
-| Stability rule | Mock candidates intended for alert use `consecutiveHits >= 3` (`STABLE_HIT_FRAMES`) |
-| Thresholds in code | Placeholder cutoffs (`0.82` / `0.72` / `0.62`) — **not** calibrated; see `docs/RESEARCH.md` |
-
-### What does **not** run today
-
-- No YOLO / YOLO-World / OWL-ViT weights or inference
-- No CLIP / DINOv2 embeddings
-- No OpenCV / PyTorch / ONNX runtime in this repo
-- No server-side image processing
-
-### Product constraints (enforced in UI copy)
-
-- Results are **possible visual matches**
-- User must confirm or reject
-- Summary does not claim the item was recovered unless the user confirmed a possible match
+Not in this repo: YOLO-World, OWL-ViT, CLIP, DINOv2, OpenCV, PyTorch.
 
 ---
 
 ## Privacy & security
 
-| Topic | Current behaviour |
-|-------|-------------------|
-| Camera permission | Requested only after **Enable Camera** on `/camera-prep` → `/scan` |
-| Live frames | Used for local `<video>` preview; mock matching does **not** upload frames |
-| Reference images | Held in React state as data URLs / URLs for the browser session |
-| Persistence | **No** `localStorage` / `sessionStorage` / database — refresh clears the session |
-| Secrets / `.env` | None used |
-| Third-party AI APIs | None called |
-| Cross-origin product URLs | May fail CORS or taint canvas during crop; UI warns the user |
+| Topic | Behaviour |
+|-------|-----------|
+| Camera | Only after **Enable Camera** |
+| Frames | Local preview; not uploaded in current build |
+| References | In-memory session (refresh clears search state) |
+| SW cache | Static assets only — no camera frames, no `/api/*` |
+| Secrets | None |
 
-Treat Phase 1 as a local demo. Do not upload sensitive personal photos to untrusted hosts when networking is added later.
+Install-hint dismissal on iOS uses `localStorage` (`findit-ios-install-hint-dismissed`) only.
 
 ---
 
@@ -371,49 +388,49 @@ Treat Phase 1 as a local demo. Do not upload sensitive personal photos to untrus
 
 ### Current limitations
 
-- AI detections are **simulated**, not measured against real scenes
-- Session state is lost on refresh or deep-link without prior steps
-- No backend, auth, history, or multi-device sync
-- No automated test suite beyond lint
-- Demo samples are illustrative SVGs, not photo-realistic references
-- Primary targets for later camera hardening: Android Chrome + laptop webcam; iOS Safari later
-- Placeholder band thresholds must not be treated as scientific operating points
+- AI is **simulated**
+- Search session is not persisted across refresh
+- No backend / accounts / history
+- Offline ≠ full product (no live scan offline)
+- Phone install / standalone camera: verify on your HTTPS deploy
 
 ### Future improvements
 
-See phase map in [`docs/REVISED_PLAN.md`](docs/REVISED_PLAN.md): FastAPI mock API → real frame pipeline → open-vocab detection → CLIP/DINOv2 eval → Postgres feedback → deploy.
+See [`docs/REVISED_PLAN.md`](docs/REVISED_PLAN.md).
 
 ---
 
 ## Testing
 
-| Command | What it does |
-|---------|----------------|
-| `npm run lint` | Runs **oxlint** (`.oxlintrc.json`) |
-| `npm run build` | `tsc -b` typecheck + Vite production bundle |
-| `npx tsc --noEmit` | TypeScript check only |
+| Command | Purpose |
+|---------|---------|
+| `npm run lint` | oxlint |
+| `npm run build` | `tsc -b` + Vite build (+ generates `dist/sw.js`, manifest) |
+| `npx tsc --noEmit` | Typecheck only |
+| `npm run preview` | Production preview for SW / manifest checks |
 
-**Not present:** unit tests, integration tests, Playwright/Cypress e2e, coverage reports, or CI config.
+**PWA checks (local preview or production):**
 
-Manual QA focus for Phase 1: full route flow, invalid/huge/tiny uploads, camera deny path (`/camera-error?kind=permission-denied`), still-image fallback, confirm/reject match sheet.
+1. Application → Manifest valid; icons 192 / 512 load  
+2. Service worker **activated** and controlling the page  
+3. Hard refresh still serves app; update toast path after a new deploy  
+4. Camera flow still works after SW registration  
+
+**Not present:** automated unit/e2e suite.
 
 ---
 
 ## Contributing
 
-1. Fork / branch from the default branch once a remote exists.
-2. Keep Phase 1 constraints: do not fake live model accuracy in the UI.
-3. Prefer small PRs: UI polish, accessibility, `scanClient` seam for mocks vs HTTP, docs/screenshots.
-4. Run `npm run lint` and `npm run build` before opening a PR.
-5. Update `docs/RESEARCH.md` when you change experimental decisions or record real metrics.
-
-No formal `CONTRIBUTING.md` or code of conduct file is in the repo yet.
+1. Prefer small PRs; do not fake live model accuracy in the UI.  
+2. Run `npm run lint` and `npm run build` before opening a PR.  
+3. Update `docs/RESEARCH.md` when recording real ML metrics.
 
 ---
 
 ## License
 
-**No license file is present** in the project root. Rights are unspecified until the author adds a `LICENSE` (e.g. MIT). Do not assume open-source reuse permissions.
+**No `LICENSE` file** in the project root yet. Do not assume open-source reuse rights until one is added.
 
 ---
 
@@ -421,23 +438,22 @@ No formal `CONTRIBUTING.md` or code of conduct file is in the repo yet.
 
 | Doc | Description |
 |-----|-------------|
-| [`docs/REVISED_PLAN.md`](docs/REVISED_PLAN.md) | Approved product and architecture decisions |
-| [`docs/RESEARCH.md`](docs/RESEARCH.md) | R&D log — hypotheses, decision log, pending experiments |
+| [`docs/REVISED_PLAN.md`](docs/REVISED_PLAN.md) | Product / tech decisions |
+| [`docs/RESEARCH.md`](docs/RESEARCH.md) | R&D log |
 
 ---
 
 ## Author & acknowledgements
 
-| Field | Status |
+| Field | Value |
 |-------|--------|
-| Author name / contact | **Not verified** in-repo (no git remote / commits in this working copy) |
-| Repository URL | **Unavailable** — add after `git remote` is configured |
-| Live demo | **Unavailable** |
+| Repository | [anushkagupta6155-ship-it/Findit-ai](https://github.com/anushkagupta6155-ship-it/Findit-ai) |
+| Live demo | Your Vercel HTTPS URL after deploy |
 
-Built as a Computer Science portfolio / interview project: production-style UX first, then measurable vision models.
+Built as a CS portfolio / interview project: production-style UX + PWA first, then measurable vision models.
 
-Acknowledgements: React, Vite, Tailwind CSS, and React Router maintainers; planned vision stack research noted in `docs/RESEARCH.md`.
+Acknowledgements: React, Vite, Tailwind, React Router, vite-plugin-pwa / Workbox maintainers.
 
 ---
 
-<sub>Phase 1 · findit-ai@0.1.0 · Frontend SPA with mocked match pipeline</sub>
+<sub>Phase 1 + PWA · findit-ai@0.1.0 · Frontend SPA with mocked match pipeline</sub>
